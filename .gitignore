@@ -1,0 +1,10 @@
+# .NET Build Output
+bin/
+obj/
+todos.json
+
+# Visual Studio
+.vs/
+*.user
+
+
