@@ -7,4 +7,9 @@ todos.json
 .vs/
 *.user
 
+# SQLite stuff
+
+*.db
+*.db-shm
+*.db-wal
 

@@ -1,9 +1,12 @@
 using TodoApi.Models;
 using TodoApi.Repositories;
+using TodoApi.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<ITodoRepository, FileTodoRepository>();
+builder.Services.AddScoped<ITodoRepository, SqliteTodoRepository>();
+builder.Services.AddDbContext<TodoDbContext>(options => options.UseSqlite("Data Source=todos.db"));
 
 var app = builder.Build();
 
@@ -13,13 +16,11 @@ app.MapPost("/todos", (CreateTodoRequest request, ITodoRepository repo) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
-        return Results.BadRequest("Der Titel darf nicht leer sein.");
+        return Results.BadRequest("Title shouldn't be empty.");
     }
 
     var created = repo.Add(request.Title);
     return Results.Created($"/todos/{created.Id}", created);
 }
-)
-
-
-app.Run("http://localhost:8000");
+);
+app.Run("http://localhost:5555");
