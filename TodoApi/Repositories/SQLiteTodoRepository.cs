@@ -25,4 +25,33 @@ public Todo Add(string title)
     return newtodo;
 }
 
+public Todo? Update(int id, string title, bool isCompleted)
+{
+    var existing = _context.Todos.FirstOrDefault(t => t.Id == id);
+    if (existing is null)
+    {
+        return null;
+    }
+
+    existing.Title = title;
+    existing.IsCompleted = isCompleted;
+    _context.SaveChanges();
+
+    return existing;
+}
+
+public bool Delete(int id)
+{
+    var existing = _context.Todos.FirstOrDefault(t => t.Id == id);
+    if (existing is null)
+    {
+        return false;
+    }
+
+    _context.Todos.Remove(existing);
+    _context.SaveChanges();
+
+    return true;
+}
+
 }

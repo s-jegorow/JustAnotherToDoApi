@@ -9,4 +9,8 @@ public interface ITodoRepository
     Todo? GetById(int id);
     
     Todo Add(string title);
+
+    Todo? Update(int id, string title, bool isCompleted);
+
+    bool Delete(int id);
 }
