@@ -1,5 +1,6 @@
-using TodoApi.Models;
+using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
+using TodoApi.Models;
 
 namespace TodoApi.Repositories;
 
@@ -8,50 +9,49 @@ public class SqliteTodoRepository : ITodoRepository
     private readonly TodoDbContext _context;
 
     public SqliteTodoRepository(TodoDbContext context)
-{
-    _context = context;
-}
-
-public List<Todo> GetAll() => _context.Todos.ToList();
-
-public Todo? GetById(int id) => _context.Todos.FirstOrDefault(t => t.Id == id);
-
-public Todo Add(string title)
-{
-    Todo newtodo = new Todo(0, title, false); //id egal -> EF auto
-    _context.Todos.Add(newtodo);
-    _context.SaveChanges();
-
-    return newtodo;
-}
-
-public Todo? Update(int id, string title, bool isCompleted)
-{
-    var existing = _context.Todos.FirstOrDefault(t => t.Id == id);
-    if (existing is null)
     {
-        return null;
+        _context = context;
     }
 
-    existing.Title = title;
-    existing.IsCompleted = isCompleted;
-    _context.SaveChanges();
+    public async Task<List<Todo>> GetAllAsync() => await _context.Todos.ToListAsync();
 
-    return existing;
-}
+    public async Task<Todo?> GetByIdAsync(int id) => await _context.Todos.FirstOrDefaultAsync(t => t.Id == id);
 
-public bool Delete(int id)
-{
-    var existing = _context.Todos.FirstOrDefault(t => t.Id == id);
-    if (existing is null)
+    public async Task<Todo> AddAsync(string title)
     {
-        return false;
+        Todo newtodo = new Todo(0, title, false);
+        _context.Todos.Add(newtodo);
+        await _context.SaveChangesAsync();
+
+        return newtodo;
     }
 
-    _context.Todos.Remove(existing);
-    _context.SaveChanges();
+    public async Task<Todo?> UpdateAsync(int id, string title, bool isCompleted)
+    {
+        var existing = await _context.Todos.FirstOrDefaultAsync(t => t.Id == id);
+        if (existing is null)
+        {
+            return null;
+        }
 
-    return true;
-}
+        existing.Title = title;
+        existing.IsCompleted = isCompleted;
+        await _context.SaveChangesAsync();
 
+        return existing;
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var existing = await _context.Todos.FirstOrDefaultAsync(t => t.Id == id);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        _context.Todos.Remove(existing);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
 }

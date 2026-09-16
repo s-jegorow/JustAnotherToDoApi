@@ -4,13 +4,13 @@ namespace TodoApi.Repositories;
 
 public interface ITodoRepository
 {
-    List<Todo> GetAll();
+    Task<List<Todo>> GetAllAsync();
 
-    Todo? GetById(int id);
-    
-    Todo Add(string title);
+    Task<Todo?> GetByIdAsync(int id);
 
-    Todo? Update(int id, string title, bool isCompleted);
+    Task<Todo> AddAsync(string title);
 
-    bool Delete(int id);
+    Task<Todo?> UpdateAsync(int id, string title, bool isCompleted);
+
+    Task<bool> DeleteAsync(int id);
 }

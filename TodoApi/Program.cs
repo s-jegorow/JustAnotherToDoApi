@@ -7,37 +7,49 @@ var builder = WebApplication.CreateBuilder(args);
 
 //singleton -> scoped geändert (lifetime-konflikt im vergleich zum alten file-handling)
 builder.Services.AddScoped<ITodoRepository, SqliteTodoRepository>();
-builder.Services.AddDbContext<TodoDbContext>(options => options.UseSqlite("Data Source=todos.db"));
+builder.Services.AddDbContext<TodoDbContext>(options => 
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddEndpointsApiExplorer(); //swagger
 builder.Services.AddSwaggerGen(); //swagger
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
-
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.MapGet("/todos", (ITodoRepository repo) => Results.Ok(repo.GetAll()));
+app.MapGet("/todos", async (ITodoRepository repo) => Results.Ok(await repo.GetAllAsync()));
 
-app.MapPost("/todos", (CreateTodoRequest request, ITodoRepository repo) => 
+app.MapGet("/todos/{id}", async (int id, ITodoRepository repo) =>
+{
+    var todo = await repo.GetByIdAsync(id);
+    if (todo is null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(todo);
+});
+
+app.MapPost("/todos", async (CreateTodoRequest request, ITodoRepository repo) => 
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
         return Results.BadRequest("Title shouldn't be empty.");
     }
 
-    var created = repo.Add(request.Title);
+    var created = await repo.AddAsync(request.Title);
     return Results.Created($"/todos/{created.Id}", created);
-}
-);
+});
 
-app.MapPut("/todos/{id}", (int id, UpdateTodoRequest request, ITodoRepository repo) =>
+app.MapPut("/todos/{id}", async (int id, UpdateTodoRequest request, ITodoRepository repo) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
         return Results.BadRequest("Title shouldn't be empty.");
     }
 
-    var updated = repo.Update(id, request.Title, request.IsCompleted);
+    var updated = await repo.UpdateAsync(id, request.Title, request.IsCompleted);
     if (updated is null)
     {
         return Results.NotFound();
@@ -46,9 +58,9 @@ app.MapPut("/todos/{id}", (int id, UpdateTodoRequest request, ITodoRepository re
     return Results.Ok(updated);
 });
 
-app.MapDelete("/todos/{id}", (int id, ITodoRepository repo) =>
+app.MapDelete("/todos/{id}", async (int id, ITodoRepository repo) =>
 {
-    var deleted = repo.Delete(id);
+    var deleted = await repo.DeleteAsync(id);
     if (!deleted)
     {
         return Results.NotFound();
