@@ -4,10 +4,12 @@ using TodoClient.Models;
 using var httpClient = new HttpClient();
 httpClient.BaseAddress = new Uri("http://localhost:5555");
 
-Console.WriteLine("===== ToDo Client =====");
+
 
 while (true)
 {
+    Console.Clear(); 
+    Console.WriteLine("===== ToDo Client =====");
     Console.WriteLine("\n1) Alle Tasks anzeigen");
     Console.WriteLine("2) Neuen Task hinzufügen");
     Console.WriteLine("3) Task bearbeiten / abhaken");
@@ -53,6 +55,7 @@ async Task ShowTodos()
         var status = todo.IsCompleted ? "[X]" : "[ ]";
         Console.WriteLine($"{status} {todo.Id}: {todo.Title}");
     }
+    Console.ReadLine(); 
 }
 
 async Task AddTodo()
@@ -72,10 +75,24 @@ async Task AddTodo()
     {
         Console.WriteLine($"Fehler: {response.StatusCode}");
     }
+    Console.ReadLine(); 
 }
 
 async Task UpdateTodo()
 {
+    var todos = await httpClient.GetFromJsonAsync<List<Todo>>("/todos");
+
+    if (todos == null || todos.Count == 0)
+    {
+        Console.WriteLine("Keine Tasks vorhanden.");
+        return;
+    }
+
+    foreach (Todo todo in todos)
+    {
+        var status = todo.IsCompleted ? "[X]" : "[ ]";
+        Console.WriteLine($"{status} {todo.Id}: {todo.Title}");
+    }
     Console.Write("Id des Tasks: ");
     var idInput = Console.ReadLine();
 
@@ -102,10 +119,25 @@ async Task UpdateTodo()
     {
         Console.WriteLine($"Fehler: {response.StatusCode}");
     }
+    Console.ReadLine(); 
 }
 
 async Task DeleteTodo()
 {
+    var todos = await httpClient.GetFromJsonAsync<List<Todo>>("/todos");
+
+    if (todos == null || todos.Count == 0)
+    {
+        Console.WriteLine("Keine Tasks vorhanden.");
+        return;
+    }
+
+    foreach (Todo todo in todos)
+    {
+        var status = todo.IsCompleted ? "[X]" : "[ ]";
+        Console.WriteLine($"{status} {todo.Id}: {todo.Title}");
+    }
+
     Console.Write("Id des Tasks: ");
     var idInput = Console.ReadLine();
 
@@ -125,4 +157,5 @@ async Task DeleteTodo()
     {
         Console.WriteLine($"Fehler: {response.StatusCode}");
     }
+    Console.ReadLine(); 
 }

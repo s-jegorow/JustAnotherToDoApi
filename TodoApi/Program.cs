@@ -14,6 +14,13 @@ builder.Services.AddSwaggerGen(); //swagger
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
