@@ -1,67 +1,106 @@
 using System.Net.Http.Json;
+using Spectre.Console;
 using TodoClient.Models;
 
 using var httpClient = new HttpClient();
 httpClient.BaseAddress = new Uri("http://localhost:5555");
 
-
-
 while (true)
 {
-    Console.Clear(); 
-    Console.WriteLine("===== ToDo Client =====");
-    Console.WriteLine("\n1) Alle Tasks anzeigen");
-    Console.WriteLine("2) Neuen Task hinzufügen");
-    Console.WriteLine("3) Task bearbeiten / abhaken");
-    Console.WriteLine("4) Task löschen");
-    Console.WriteLine("5) Beenden");
-    Console.Write("Auswahl: ");
-    var choice = Console.ReadLine();
+    AnsiConsole.Clear();
+    AnsiConsole.Write(
+        new FigletText("Todo Client")
+            .LeftJustified()
+            .Color(Color.Cyan1));
 
-    switch (choice)
+    var choice = AnsiConsole.Prompt(
+        new SelectionPrompt<string>()
+            .Title("[yellow]Hey Pal, what would you like to do?[/]")
+            .PageSize(6)
+            .AddChoices(new[]
+            {
+                "View all tasks",
+                "Add new task",
+                "Update / toggle task",
+                "Delete task",
+                "Exit"
+            }));
+
+    try
     {
-        case "1":
-            await ShowTodos();
-            break;
-        case "2":
-            await AddTodo();
-            break;
-        case "3":
-            await UpdateTodo();
-            break;
-        case "4":
-            await DeleteTodo();
-            break;
-        case "5":
-            return;
-        default:
-            Console.WriteLine("Ungültige Auswahl.");
-            break;
+        switch (choice[0])
+        {
+            case '1':
+                await ShowTodos();
+                break;
+            case '2':
+                await AddTodo();
+                break;
+            case '3':
+                await UpdateTodo();
+                break;
+            case '4':
+                await DeleteTodo();
+                break;
+            case '5':
+                return;
+        }
     }
+    catch (HttpRequestException)
+    {
+        AnsiConsole.MarkupLine("\n[red]Error: Cannot reach server. Is the API running or maybe the wrong port or so?[/]");
+        PressAnyKey();
+    }
+}
+
+void RenderTodosTable(List<Todo> todos)
+{
+    var table = new Table();
+    table.Border(TableBorder.Rounded);
+    table.AddColumn(new TableColumn("[bold]ID[/]").Centered());
+    table.AddColumn(new TableColumn("[bold]Status[/]").Centered());
+    table.AddColumn(new TableColumn("[bold]Title[/]"));
+
+    foreach (var todo in todos)
+    {
+        var status = todo.IsCompleted ? "[green]✓ Done[/]" : "[yellow]○ Pending[/]";
+        var title = todo.IsCompleted ? $"[grey]{Markup.Escape(todo.Title)}[/]" : Markup.Escape(todo.Title);
+        table.AddRow(todo.Id.ToString(), status, title);
+    }
+
+    AnsiConsole.Write(table);
+}
+
+void PressAnyKey()
+{
+    AnsiConsole.Markup("\n[grey]Press any key to continue..[/]");
+    Console.ReadKey(true);
+}
+
+async Task<List<Todo>?> FetchTodos()
+{
+    var todos = await httpClient.GetFromJsonAsync<List<Todo>>("/todos");
+    if (todos == null || todos.Count == 0)
+    {
+        AnsiConsole.MarkupLine("[yellow]Well, no tasks found.[/]");
+        return null;
+    }
+    return todos;
 }
 
 async Task ShowTodos()
 {
-    var todos = await httpClient.GetFromJsonAsync<List<Todo>>("/todos");
-
-    if (todos == null || todos.Count == 0)
+    var todos = await FetchTodos();
+    if (todos != null)
     {
-        Console.WriteLine("Keine Tasks vorhanden.");
-        return;
+        RenderTodosTable(todos);
     }
-
-    foreach (Todo todo in todos)
-    {
-        var status = todo.IsCompleted ? "[X]" : "[ ]";
-        Console.WriteLine($"{status} {todo.Id}: {todo.Title}");
-    }
-    Console.ReadLine(); 
+    PressAnyKey();
 }
 
 async Task AddTodo()
 {
-    Console.Write("Titel: ");
-    var title = Console.ReadLine() ?? "";
+    var title = AnsiConsole.Ask<string>("[green]Task title:[/] ");
 
     var request = new CreateTodoRequest(title);
     var response = await httpClient.PostAsJsonAsync("/todos", request);
@@ -69,93 +108,65 @@ async Task AddTodo()
     if (response.IsSuccessStatusCode)
     {
         var created = await response.Content.ReadFromJsonAsync<Todo>();
-        Console.WriteLine($"Task hinzugefügt: {created?.Id} - '{created?.Title}'");
+        AnsiConsole.MarkupLine($"[green]✓ Added task #{created?.Id}:[/] '{Markup.Escape(created?.Title ?? "")}'");
     }
     else
     {
-        Console.WriteLine($"Fehler: {response.StatusCode}");
+        AnsiConsole.MarkupLine($"[red]Error:[/] {response.StatusCode}");
     }
-    Console.ReadLine(); 
+    PressAnyKey();
 }
 
 async Task UpdateTodo()
 {
-    var todos = await httpClient.GetFromJsonAsync<List<Todo>>("/todos");
-
-    if (todos == null || todos.Count == 0)
+    var todos = await FetchTodos();
+    if (todos == null)
     {
-        Console.WriteLine("Keine Tasks vorhanden.");
+        PressAnyKey();
         return;
     }
 
-    foreach (Todo todo in todos)
-    {
-        var status = todo.IsCompleted ? "[X]" : "[ ]";
-        Console.WriteLine($"{status} {todo.Id}: {todo.Title}");
-    }
-    Console.Write("Id des Tasks: ");
-    var idInput = Console.ReadLine();
+    RenderTodosTable(todos);
 
-    if (!int.TryParse(idInput, out var id))
-    {
-        Console.WriteLine("Ungültige Id.");
-        return;
-    }
-
-    Console.Write("Neuer Titel: ");
-    var title = Console.ReadLine() ?? "";
-
-    Console.Write("Erledigt? (j/n): ");
-    var isCompleted = Console.ReadLine()?.Trim().ToLower() == "j";
+    var id = AnsiConsole.Ask<int>("Task ID: ");
+    var title = AnsiConsole.Ask<string>("New title: ");
+    var isCompleted = AnsiConsole.Confirm("Mark as done?");
 
     var request = new UpdateTodoRequest(title, isCompleted);
     var response = await httpClient.PutAsJsonAsync($"/todos/{id}", request);
 
     if (response.IsSuccessStatusCode)
     {
-        Console.WriteLine("Task aktualisiert.");
+        AnsiConsole.MarkupLine("[green]✓ Task updated.[/]");
     }
     else
     {
-        Console.WriteLine($"Fehler: {response.StatusCode}");
+        AnsiConsole.MarkupLine($"[red]Error:[/] {response.StatusCode}");
     }
-    Console.ReadLine(); 
+    PressAnyKey();
 }
 
 async Task DeleteTodo()
 {
-    var todos = await httpClient.GetFromJsonAsync<List<Todo>>("/todos");
-
-    if (todos == null || todos.Count == 0)
+    var todos = await FetchTodos();
+    if (todos == null)
     {
-        Console.WriteLine("Keine Tasks vorhanden.");
+        PressAnyKey();
         return;
     }
 
-    foreach (Todo todo in todos)
-    {
-        var status = todo.IsCompleted ? "[X]" : "[ ]";
-        Console.WriteLine($"{status} {todo.Id}: {todo.Title}");
-    }
+    RenderTodosTable(todos);
 
-    Console.Write("Id des Tasks: ");
-    var idInput = Console.ReadLine();
-
-    if (!int.TryParse(idInput, out var id))
-    {
-        Console.WriteLine("Ungültige Id.");
-        return;
-    }
-
+    var id = AnsiConsole.Ask<int>("Task ID: ");
     var response = await httpClient.DeleteAsync($"/todos/{id}");
 
     if (response.IsSuccessStatusCode)
     {
-        Console.WriteLine("Task gelöscht.");
+        AnsiConsole.MarkupLine("[green]✓ Task deleted.[/]");
     }
     else
     {
-        Console.WriteLine($"Fehler: {response.StatusCode}");
+        AnsiConsole.MarkupLine($"[red]Error:[/] {response.StatusCode}");
     }
-    Console.ReadLine(); 
+    PressAnyKey();
 }
